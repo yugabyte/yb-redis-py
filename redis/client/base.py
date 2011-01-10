@@ -1,6 +1,5 @@
 import datetime
 import errno
-import logging
 import socket
 import threading
 import time
@@ -8,39 +7,6 @@ import warnings
 from itertools import chain, imap
 from redis.exceptions import ConnectionError, ResponseError, InvalidResponse, WatchError
 from redis.exceptions import RedisError, AuthenticationError
-
-try:
-    NullHandler = logging.NullHandler
-except AttributeError:
-    class NullHandler(logging.Handler):
-        def emit(self, record): pass
-
-log = logging.getLogger("redis")
-# Add a no-op handler to avoid error messages if the importing module doesn't
-# configure logging.
-log.addHandler(NullHandler())
-
-class ConnectionPool(threading.local):
-    "Manages a list of connections on the local thread"
-    def __init__(self):
-        self.connections = {}
-
-    def make_connection_key(self, host, port, db):
-        "Create a unique key for the specified host, port and db"
-        return '%s:%s:%s' % (host, port, db)
-
-    def get_connection(self, host, port, db, password, socket_timeout):
-        "Return a specific connection for the specified host, port and db"
-        key = self.make_connection_key(host, port, db)
-        if key not in self.connections:
-            self.connections[key] = Connection(
-                host, port, db, password, socket_timeout)
-        return self.connections[key]
-
-    def get_all_connections(self):
-        "Return a list of all connection objects the manager knows about"
-        return self.connections.values()
-
 
 class Connection(object):
     "Manages TCP communication to and from a Redis server"
@@ -56,10 +22,11 @@ class Connection(object):
 
     def connect(self, redis_instance):
         "Connects to the Redis server if not already connected"
-        if self._sock:
-            return
-        if log_enabled(log):
-            log.debug("connecting to %s:%d/%d", self.host, self.port, self.db)
+        if not self._sock:
+            self._connect(redis_instance)
+
+    def _connect(self, redis_instance):
+        "Connects to the Redis server if not already connected"
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(self.socket_timeout)
@@ -81,10 +48,11 @@ class Connection(object):
 
     def disconnect(self):
         "Disconnects from the Redis server"
-        if self._sock is None:
-            return
-        if log_enabled(log):
-            log.debug("disconnecting from %s:%d/%d", self.host, self.port, self.db)
+        if self._sock is not None:
+            self._disconnect()
+
+    def _disconnect(self):
+        "Disconnects from the Redis server"
         try:
             self._sock.close()
         except socket.error:
@@ -122,6 +90,30 @@ class Connection(object):
                 raise ConnectionError("Error while reading from socket: %s" % \
                     e.args[1])
         return ''
+
+class ConnectionPool(threading.local):
+    "Manages a list of connections on the local thread"
+    def __init__(self, connection_class=Connection):
+        self.connection_class = connection_class
+        self.connections = {}
+
+    def make_connection_key(self, host, port, db):
+        "Create a unique key for the specified host, port and db"
+        return '%s:%s:%s' % (host, port, db)
+
+    def get_connection(self, host, port, db, password, socket_timeout):
+        "Return a specific connection for the specified host, port and db"
+        key = self.make_connection_key(host, port, db)
+        if key not in self.connections:
+            self.connections[key] = self.connection_class(
+                host, port, db, password, socket_timeout)
+        return self.connections[key]
+
+    def get_all_connections(self):
+        "Return a list of all connection objects the manager knows about"
+        return self.connections.values()
+
+
 
 def list_or_args(command, keys, args):
     # returns a single list combining keys and args
@@ -162,17 +154,6 @@ def dict_merge(*dicts):
     merged = {}
     [merged.update(d) for d in dicts]
     return merged
-
-def log_enabled(log, level=logging.DEBUG):
-    return log.isEnabledFor(log, level)
-
-def repr_command(args):
-    "Represents a command as a string."
-    command = [args[0]]
-    if len(args) > 1:
-        command.extend(repr(x) for x in args[1:])
-
-    return ' '.join(command)
 
 def parse_info(response):
     "Parse the result of Redis's INFO command into a Python dict"
@@ -343,8 +324,6 @@ class Redis(threading.local):
         if self.subscribed and not subscription_command:
             raise RedisError("Cannot issue commands other than SUBSCRIBE and "
                 "UNSUBSCRIBE while channels are open")
-        if log_enabled(log):
-            log.debug(repr_command(command))
         command = self._encode_command(command)
         try:
             self.connection.send(command, self)
@@ -1444,11 +1423,6 @@ class Pipeline(Redis):
             commands,
             (('', ('EXEC',), ''),)
             )])
-        if log_enabled(log):
-            log.debug("MULTI")
-            for command in commands:
-                log.debug("TRANSACTION> "+ repr_command(command[1]))
-            log.debug("EXEC")
         self.connection.send(all_cmds, self)
         # parse off the response for MULTI and all commands prior to EXEC
         for i in range(len(commands)+1):
@@ -1474,9 +1448,6 @@ class Pipeline(Redis):
     def _execute_pipeline(self, commands):
         # build up all commands into a single request to increase network perf
         all_cmds = ''.join([self._encode_command(c) for _1, c, _2 in commands])
-        if log_enabled(log):
-            for command in commands:
-                log.debug("PIPELINE> " + repr_command(command[1]))
         self.connection.send(all_cmds, self)
         data = []
         for command_name, _, options in commands:

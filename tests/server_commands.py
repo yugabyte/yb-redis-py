@@ -1,4 +1,5 @@
 import redis
+from redis.client.debug import DebugClient
 import unittest
 import datetime
 import threading
@@ -1272,7 +1273,7 @@ class BufferingHandler(logging.handlers.BufferingHandler):
 class LoggingTestCase(unittest.TestCase):
 
     def get_client(self):
-        return redis.Redis(host='localhost', port=6379, db=9)
+        return DebugClient(host='localhost', port=6379, db=9)
 
     def setUp(self):
         self.client = self.get_client()
