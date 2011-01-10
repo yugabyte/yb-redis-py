@@ -1,5 +1,6 @@
 import datetime
 import errno
+import logging
 import socket
 import threading
 import time
@@ -8,6 +9,16 @@ from itertools import chain, imap
 from redis.exceptions import ConnectionError, ResponseError, InvalidResponse, WatchError
 from redis.exceptions import RedisError, AuthenticationError
 
+try:
+    NullHandler = logging.NullHandler
+except AttributeError:
+    class NullHandler(logging.Handler):
+        def emit(self, record): pass
+
+log = logging.getLogger("redis")
+# Add a no-op handler to avoid error messages if the importing module doesn't
+# configure logging.
+log.addHandler(NullHandler())
 
 class ConnectionPool(threading.local):
     "Manages a list of connections on the local thread"
@@ -47,6 +58,8 @@ class Connection(object):
         "Connects to the Redis server if not already connected"
         if self._sock:
             return
+        if log_enabled(log):
+            log.debug("connecting to %s:%d/%d", self.host, self.port, self.db)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(self.socket_timeout)
@@ -70,6 +83,8 @@ class Connection(object):
         "Disconnects from the Redis server"
         if self._sock is None:
             return
+        if log_enabled(log):
+            log.debug("disconnecting from %s:%d/%d", self.host, self.port, self.db)
         try:
             self._sock.close()
         except socket.error:
@@ -147,6 +162,17 @@ def dict_merge(*dicts):
     merged = {}
     [merged.update(d) for d in dicts]
     return merged
+
+def log_enabled(log, level=logging.DEBUG):
+    return log.isEnabledFor(log, level)
+
+def repr_command(args):
+    "Represents a command as a string."
+    command = [args[0]]
+    if len(args) > 1:
+        command.extend(repr(x) for x in args[1:])
+
+    return ' '.join(command)
 
 def parse_info(response):
     "Parse the result of Redis's INFO command into a Python dict"
@@ -317,6 +343,9 @@ class Redis(threading.local):
         if self.subscribed and not subscription_command:
             raise RedisError("Cannot issue commands other than SUBSCRIBE and "
                 "UNSUBSCRIBE while channels are open")
+        if log_enabled(log):
+            log.debug(repr_command(command))
+        command = self._encode_command(command)
         try:
             self.connection.send(command, self)
             if subscription_command:
@@ -328,14 +357,17 @@ class Redis(threading.local):
             if subscription_command:
                 return None
             return self.parse_response(command_name, **options)
+    
+    def _encode_command(self, args):
+        cmds = ['$%s\r\n%s\r\n' % (len(enc_value), enc_value)
+                for enc_value in imap(self.encode, args)]
+        return '*%s\r\n%s' % (len(cmds), ''.join(cmds))
 
     def execute_command(self, *args, **options):
         "Sends the command to the redis server and returns it's response"
-        cmds = ['$%s\r\n%s\r\n' % (len(enc_value), enc_value)
-                for enc_value in imap(self.encode, args)]
         return self._execute_command(
             args[0],
-            '*%s\r\n%s' % (len(cmds), ''.join(cmds)),
+            args,
             **options
             )
 
@@ -1407,11 +1439,16 @@ class Pipeline(Redis):
     def _execute_transaction(self, commands):
         # wrap the commands in MULTI ... EXEC statements to indicate an
         # atomic operation
-        all_cmds = ''.join([c for _1, c, _2 in chain(
-            (('', 'MULTI\r\n', ''),),
+        all_cmds = ''.join([self._encode_command(c) for _1, c, _2 in chain(
+            (('', ('MULTI',), ''),),
             commands,
-            (('', 'EXEC\r\n', ''),)
+            (('', ('EXEC',), ''),)
             )])
+        if log_enabled(log):
+            log.debug("MULTI")
+            for command in commands:
+                log.debug("TRANSACTION> "+ repr_command(command[1]))
+            log.debug("EXEC")
         self.connection.send(all_cmds, self)
         # parse off the response for MULTI and all commands prior to EXEC
         for i in range(len(commands)+1):
@@ -1436,7 +1473,10 @@ class Pipeline(Redis):
 
     def _execute_pipeline(self, commands):
         # build up all commands into a single request to increase network perf
-        all_cmds = ''.join([c for _1, c, _2 in commands])
+        all_cmds = ''.join([self._encode_command(c) for _1, c, _2 in commands])
+        if log_enabled(log):
+            for command in commands:
+                log.debug("PIPELINE> " + repr_command(command[1]))
         self.connection.send(all_cmds, self)
         data = []
         for command_name, _, options in commands:
