@@ -202,7 +202,6 @@ def pairs_to_dict_typed(response, type_info):
         result[key] = value
     return result
 
-
 def zset_score_pairs(response, **options):
     """
     If ``withscores`` is specified in the options, return the response as
@@ -213,6 +212,11 @@ def zset_score_pairs(response, **options):
     score_cast_func = options.get('score_cast_func', float)
     it = iter(response)
     return list(izip(it, imap(score_cast_func, it)))
+
+
+def ts_time_value_pairs(response, **options):
+    it = iter(response)
+    return list(izip(imap(int, it), it))
 
 
 def sort_return_tuples(response, **options):
@@ -366,7 +370,7 @@ class StrictRedis(object):
             'LINSERT LLEN LPUSHX PFADD PFCOUNT RPUSHX SADD SCARD SDIFFSTORE '
             'SETBIT SETRANGE SINTERSTORE SREM STRLEN SUNIONSTORE ZADD ZCARD '
             'ZLEXCOUNT ZREM ZREMRANGEBYLEX ZREMRANGEBYRANK ZREMRANGEBYSCORE '
-            'GEOADD',
+            'TSCARD GEOADD',
             int
         ),
         string_keys_to_dict(
@@ -382,7 +386,7 @@ class StrictRedis(object):
         string_keys_to_dict('ZSCORE ZINCRBY', float_or_none),
         string_keys_to_dict(
             'FLUSHALL FLUSHDB LSET LTRIM MSET PFMERGE RENAME '
-            'SAVE SELECT SHUTDOWN SLAVEOF WATCH UNWATCH',
+            'SAVE SELECT SHUTDOWN SLAVEOF WATCH UNWATCH TSADD TSREM',
             bool_ok
         ),
         string_keys_to_dict('BLPOP BRPOP', lambda r: r and tuple(r) or None),
@@ -393,6 +397,10 @@ class StrictRedis(object):
         string_keys_to_dict(
             'ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE',
             zset_score_pairs
+        ),
+        string_keys_to_dict(
+            'TSLASTN TSRANGEBYTIME TSREVRANGEBYTIME ',
+            ts_time_value_pairs
         ),
         string_keys_to_dict('ZRANK ZREVRANK', int_or_none),
         string_keys_to_dict('BGREWRITEAOF BGSAVE', lambda r: True),
@@ -1674,6 +1682,63 @@ class StrictRedis(object):
         """
         args = list_or_args(keys, args)
         return self.execute_command('SUNIONSTORE', dest, *args)
+
+    # TIMESERIES COMMANDS
+    def tsadd(self, name, *args):
+        """
+        Set any number of timestamp, element pairs to the timeseries ``name``.
+
+        Example:
+        redis.tsadd('my-key', 11, 'name1', 22, 'name2', 33, 'name3')
+        """
+        pieces = []
+        if args:
+            if len(args) % 2 != 0:
+                raise RedisError("TSADD requires an equal number of "
+                                 "values and scores")
+            pieces.extend(args)
+        return self.execute_command('TSADD', name, *pieces)
+
+    def tsget(self, name, ts):
+        """
+        Return the element corresponding to the specified timestamp `ts` in the time series``name``
+        """
+        return self.execute_command('TSGET', name, ts)
+
+    def tscard(self, name):
+        """
+        Return the number of elements in the time series``name``
+        """
+        return self.execute_command('TSCARD', name)
+
+    def tsrem(self, name, *timestamps):
+        """
+        Remove member ``timestamps`` from sorted set ``name``
+        """
+        return self.execute_command('TSREM', name, *timestamps)
+
+    def tslastn(self, name, count):
+        """
+        Returns the `count` timestamp-element pairs in the time series``name`` with the largest timestamp(s)
+        """
+        return self.execute_command('TSLASTN', name, count)
+
+    def tsrangebytime(self, name, min, max):
+        """
+        Returns the timestamp-element pairs in the time series``name`` with timestamp between min and max."
+        """
+        pieces = ['TSRANGEBYTIME', name, min, max]
+        return self.execute_command(*pieces)
+
+    def tsrevrangebytime(self, name, min, max, num=None):
+        """
+        Returns the timestamp-element pairs in the time series``name`` with timestamp between min and max."
+        """
+        pieces = ['TSREVRANGEBYTIME', name, min, max]
+        if num:
+            pieces.extend([Token.get_token('LIMIT'), num])
+        return self.execute_command(*pieces)
+
 
     # SORTED SET COMMANDS
     def zadd(self, name, *args, **kwargs):

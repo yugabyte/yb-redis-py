@@ -9,18 +9,23 @@ _REDIS_VERSIONS = {}
 
 
 def get_version(**kwargs):
-    params = {'host': 'localhost', 'port': 6379, 'db': 9}
+    params = {'host': 'localhost', 'port': 6379}
     params.update(kwargs)
     key = '%s:%s' % (params['host'], params['port'])
     if key not in _REDIS_VERSIONS:
         client = redis.Redis(**params)
-        _REDIS_VERSIONS[key] = client.info()['redis_version']
+        info = client.info()
+        # YugaByte does not implement all the details in INFO.
+        # Let us return the version as 0.0 instead of failing for not having
+        # 'redis_version' in the info.
+        if 'redis_version' not in info: return "0.0"
+        _REDIS_VERSIONS[key] = info['redis_version']
         client.connection_pool.disconnect()
     return _REDIS_VERSIONS[key]
 
 
 def _get_client(cls, request=None, **kwargs):
-    params = {'host': 'localhost', 'port': 6379, 'db': 9}
+    params = {'host': 'localhost', 'port': 6379}
     params.update(kwargs)
     client = cls(**params)
     client.flushdb()
