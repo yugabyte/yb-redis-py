@@ -202,7 +202,6 @@ def pairs_to_dict_typed(response, type_info):
         result[key] = value
     return result
 
-
 def zset_score_pairs(response, **options):
     """
     If ``withscores`` is specified in the options, return the response as
@@ -213,6 +212,11 @@ def zset_score_pairs(response, **options):
     score_cast_func = options.get('score_cast_func', float)
     it = iter(response)
     return list(izip(it, imap(score_cast_func, it)))
+
+
+def ts_time_value_pairs(response, **options):
+    it = iter(response)
+    return list(izip(imap(int, it), it))
 
 
 def sort_return_tuples(response, **options):
@@ -391,9 +395,12 @@ class StrictRedis(object):
             lambda r: r and set(r) or set()
         ),
         string_keys_to_dict(
-            'ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE'
-            'TSLASTN TSRANGEBYTIME TSREVRANGEBYTIME ',
+            'ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE',
             zset_score_pairs
+        ),
+        string_keys_to_dict(
+            'TSLASTN TSRANGEBYTIME TSREVRANGEBYTIME ',
+            ts_time_value_pairs
         ),
         string_keys_to_dict('ZRANK ZREVRANK', int_or_none),
         string_keys_to_dict('BGREWRITEAOF BGSAVE', lambda r: True),
@@ -758,10 +765,12 @@ class StrictRedis(object):
         The section option is not supported by older versions of Redis Server,
         and will generate ResponseError
         """
-        if section is None:
-            return self.execute_command('INFO')
-        else:
-            return self.execute_command('INFO', section)
+        # YugaByte does not support INFO yet
+        #if section is None:
+        #    return self.execute_command('INFO')
+        #else:
+        #    return self.execute_command('INFO', section)
+        return {}
 
     def lastsave(self):
         """
@@ -1700,7 +1709,7 @@ class StrictRedis(object):
         return self.execute_command('TSADD', name, *pieces)
 
     def tsget(self, name, ts):
-        "Return the number of elements in the time series``name``"
+        "Return the element corresponding to the specified timestamp `ts` in the time series``name``"
         return self.execute_command('TSGET', name, ts)
 
     def tscard(self, name):
@@ -1712,29 +1721,23 @@ class StrictRedis(object):
         return self.execute_command('TSREM', name, *timestamps)
 
     def tslastn(self, name, count):
+        """
+        Returns the `count` timestamp-element pairs in the time series``name`` with the largest timestamp(s)
+        """
         return self.execute_command('TSLASTN', name, count)
 
     def tsrangebytime(self, name, min, max):
-        return self.execute_command('TSRANGEBYTIME', name, min, max)
-        # start=None, num=None, withscores=False, score_cast_func=float):
-
-    def tsrevrangebyscore(self, name, max, min, num=None):
         """
-        Return a range of values from the sorted set ``name`` with scores
-        between ``min`` and ``max`` in descending order.
-
-        If ``start`` and ``num`` are specified, then return a slice
-        of the range.
-
-        ``withscores`` indicates to return the scores along with the values.
-        The return type is a list of (value, score) pairs
-
-        ``score_cast_func`` a callable used to cast the score return value
+        Returns the timestamp-element pairs in the time series``name`` with timestamp between min and max."
         """
-        if (start is not None and num is None) or \
-                (num is not None and start is None):
-            raise RedisError("``start`` and ``num`` must both be specified")
-        pieces = ['TSREVRANGEBYSCORE', name, max, min]
+        pieces = ['TSRANGEBYTIME', name, min, max]
+        return self.execute_command(*pieces)
+
+    def tsrevrangebytime(self, name, min, max, num=None):
+        """
+        Returns the timestamp-element pairs in the time series``name`` with timestamp between min and max."
+        """
+        pieces = ['TSREVRANGEBYTIME', name, min, max]
         if num:
             pieces.extend([Token.get_token('LIMIT'), num])
         return self.execute_command(*pieces)
