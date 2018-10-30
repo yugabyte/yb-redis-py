@@ -366,7 +366,7 @@ class StrictRedis(object):
             'LINSERT LLEN LPUSHX PFADD PFCOUNT RPUSHX SADD SCARD SDIFFSTORE '
             'SETBIT SETRANGE SINTERSTORE SREM STRLEN SUNIONSTORE ZADD ZCARD '
             'ZLEXCOUNT ZREM ZREMRANGEBYLEX ZREMRANGEBYRANK ZREMRANGEBYSCORE '
-            'GEOADD',
+            'ZCARD TSCARD GEOADD',
             int
         ),
         string_keys_to_dict(
@@ -382,7 +382,7 @@ class StrictRedis(object):
         string_keys_to_dict('ZSCORE ZINCRBY', float_or_none),
         string_keys_to_dict(
             'FLUSHALL FLUSHDB LSET LTRIM MSET PFMERGE RENAME '
-            'SAVE SELECT SHUTDOWN SLAVEOF WATCH UNWATCH',
+            'SAVE SELECT SHUTDOWN SLAVEOF WATCH UNWATCH TSADD TSREM',
             bool_ok
         ),
         string_keys_to_dict('BLPOP BRPOP', lambda r: r and tuple(r) or None),
@@ -391,7 +391,8 @@ class StrictRedis(object):
             lambda r: r and set(r) or set()
         ),
         string_keys_to_dict(
-            'ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE',
+            'ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE'
+            'TSLASTN TSRANGEBYTIME TSREVRANGEBYTIME ',
             zset_score_pairs
         ),
         string_keys_to_dict('ZRANK ZREVRANK', int_or_none),
@@ -1674,6 +1675,70 @@ class StrictRedis(object):
         """
         args = list_or_args(keys, args)
         return self.execute_command('SUNIONSTORE', dest, *args)
+
+    # TIMESERIES COMMANDS
+    def tsadd(self, name, *args, **kwargs):
+        """
+        Set any number of timestamp, element pairs to the timeseries ``name``. Pairs
+        can be specified in two ways:
+
+        As *args, in the form of: timestamp1, name1, timestamp2, name2, ...
+        or as **kwargs, in the form of: name1=timestamp1, name2=timestamp2, ...
+
+        The following example would add four values to the 'my-key' key:
+        redis.tsadd('my-key', 11, 'name1', 22, 'name2', name3=33, name4=44)
+        """
+        pieces = []
+        if args:
+            if len(args) % 2 != 0:
+                raise RedisError("TSADD requires an equal number of "
+                                 "values and scores")
+            pieces.extend(args)
+        for pair in iteritems(kwargs):
+            pieces.append(pair[1])
+            pieces.append(pair[0])
+        return self.execute_command('TSADD', name, *pieces)
+
+    def tsget(self, name, ts):
+        "Return the number of elements in the time series``name``"
+        return self.execute_command('TSGET', name, ts)
+
+    def tscard(self, name):
+        "Return the number of elements in the time series``name``"
+        return self.execute_command('TSCARD', name)
+
+    def tsrem(self, name, *timestamps):
+        "Remove member ``timestamps`` from sorted set ``name``"
+        return self.execute_command('TSREM', name, *timestamps)
+
+    def tslastn(self, name, count):
+        return self.execute_command('TSLASTN', name, count)
+
+    def tsrangebytime(self, name, min, max):
+        return self.execute_command('TSRANGEBYTIME', name, min, max)
+        # start=None, num=None, withscores=False, score_cast_func=float):
+
+    def tsrevrangebyscore(self, name, max, min, num=None):
+        """
+        Return a range of values from the sorted set ``name`` with scores
+        between ``min`` and ``max`` in descending order.
+
+        If ``start`` and ``num`` are specified, then return a slice
+        of the range.
+
+        ``withscores`` indicates to return the scores along with the values.
+        The return type is a list of (value, score) pairs
+
+        ``score_cast_func`` a callable used to cast the score return value
+        """
+        if (start is not None and num is None) or \
+                (num is not None and start is None):
+            raise RedisError("``start`` and ``num`` must both be specified")
+        pieces = ['TSREVRANGEBYSCORE', name, max, min]
+        if num:
+            pieces.extend([Token.get_token('LIMIT'), num])
+        return self.execute_command(*pieces)
+
 
     # SORTED SET COMMANDS
     def zadd(self, name, *args, **kwargs):
