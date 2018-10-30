@@ -765,12 +765,10 @@ class StrictRedis(object):
         The section option is not supported by older versions of Redis Server,
         and will generate ResponseError
         """
-        # YugaByte does not support INFO yet
-        #if section is None:
-        #    return self.execute_command('INFO')
-        #else:
-        #    return self.execute_command('INFO', section)
-        return {}
+        if section is None:
+            return self.execute_command('INFO')
+        else:
+            return self.execute_command('INFO', section)
 
     def lastsave(self):
         """

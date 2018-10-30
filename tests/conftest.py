@@ -15,6 +15,9 @@ def get_version(**kwargs):
     if key not in _REDIS_VERSIONS:
         client = redis.Redis(**params)
         info = client.info()
+        # YugaByte does not implement all the details in INFO.
+        # Let us return the version as 0.0 instead of failing for not having
+        # 'redis_version' in the info.
         if 'redis_version' not in info: return "0.0"
         _REDIS_VERSIONS[key] = info['redis_version']
         client.connection_pool.disconnect()
