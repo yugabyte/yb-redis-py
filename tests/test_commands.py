@@ -1141,27 +1141,27 @@ class TestRedisCommands(object):
 
     # TS TYPE COMMANDS
     def test_tsadd(self, r):
-        r.tsadd('a', 1, 'a1', 2, 'a2', a3=3)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3')
         assert r.tsget('a', 1) == b('a1')
         assert r.tsget('a', 2) == b('a2')
         assert r.tsget('a', 3) == b('a3')
 
     def test_tscard(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3')
         assert r.tscard('a') == 3
 
     def test_tsrangebytime(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3, a4=4, a5=5)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3', 4, 'a4', 5, 'a5')
         assert r.tsrangebytime('a', '-inf', '+inf') == [(1, b('a1')), (2, b('a2')), (3, b('a3')), (4, b('a4')), (5, b('a5'))]
         assert r.tsrangebytime('a', 2, 4) == [(2, b('a2')), (3, b('a3')), (4, b('a4'))]
 
     def test_tslastn(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3, a4=4, a5=5)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3', 4, 'a4', 5, 'a5')
         assert r.tslastn('a', 10) == [(1, b('a1')), (2, b('a2')), (3, b('a3')), (4, b('a4')), (5, b('a5'))]
         assert r.tslastn('a', 4) == [(2, b('a2')), (3, b('a3')), (4, b('a4')), (5, b('a5'))]
 
     def test_tsrem(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3')
         assert r.tsrangebytime('a', 0, '+inf') == [(1, b('a1')), (2, b('a2')), (3, b('a3'))]
         assert r.tsrem('a', 2)
         assert r.tsrangebytime('a', 0, '+inf') == [(1, b('a1')), (3, b('a3'))]
@@ -1169,12 +1169,12 @@ class TestRedisCommands(object):
         assert r.tsrangebytime('a', 0, '+inf') == [(1, b('a1')), (3, b('a3'))]
 
     def test_tsrem_multiple_keys(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3')
         assert r.tsrem('a', 1, 2)
         assert r.tsrangebytime('a', 0, 5) == [(3, b('a3'))]
 
     def test_tsrevrangebytime(self, r):
-        r.tsadd('a', a1=1, a2=2, a3=3, a4=4, a5=5)
+        r.tsadd('a', 1, 'a1', 2, 'a2', 3, 'a3', 4, 'a4', 5, 'a5')
         assert r.tsrevrangebytime('a', 2, 4) == [(4, b('a4')), (3, b('a3')), (2, b('a2'))]
         assert r.tsrevrangebytime('a', '-inf', '+inf') == [(5, b('a5')), (4, b('a4')), (3, b('a3')), (2, b('a2')), (1, b('a1')) ]
 

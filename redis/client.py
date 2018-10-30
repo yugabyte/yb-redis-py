@@ -1684,16 +1684,12 @@ class StrictRedis(object):
         return self.execute_command('SUNIONSTORE', dest, *args)
 
     # TIMESERIES COMMANDS
-    def tsadd(self, name, *args, **kwargs):
+    def tsadd(self, name, *args):
         """
-        Set any number of timestamp, element pairs to the timeseries ``name``. Pairs
-        can be specified in two ways:
+        Set any number of timestamp, element pairs to the timeseries ``name``.
 
-        As *args, in the form of: timestamp1, name1, timestamp2, name2, ...
-        or as **kwargs, in the form of: name1=timestamp1, name2=timestamp2, ...
-
-        The following example would add four values to the 'my-key' key:
-        redis.tsadd('my-key', 11, 'name1', 22, 'name2', name3=33, name4=44)
+        Example:
+        redis.tsadd('my-key', 11, 'name1', 22, 'name2', 33, 'name3')
         """
         pieces = []
         if args:
@@ -1701,9 +1697,6 @@ class StrictRedis(object):
                 raise RedisError("TSADD requires an equal number of "
                                  "values and scores")
             pieces.extend(args)
-        for pair in iteritems(kwargs):
-            pieces.append(pair[1])
-            pieces.append(pair[0])
         return self.execute_command('TSADD', name, *pieces)
 
     def tsget(self, name, ts):
