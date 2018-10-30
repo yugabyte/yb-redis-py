@@ -15,7 +15,7 @@ used against the Yedis API end point of YugaByteDB. This client also supports ad
 commands (such as the time-series related commands) for use againist YugaByte DB that
 are not part of the official Redis API.
 
-Please refer to `YugaByte DB docs <https://docs.yugabyte.com/>`_ for reference.
+Please refer to `YugaByte DB docs <https://docs.yugabyte.com/>` for reference.
 
 
 Installation
