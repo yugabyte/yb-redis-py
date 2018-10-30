@@ -1707,15 +1707,21 @@ class StrictRedis(object):
         return self.execute_command('TSADD', name, *pieces)
 
     def tsget(self, name, ts):
-        "Return the element corresponding to the specified timestamp `ts` in the time series``name``"
+        """
+        Return the element corresponding to the specified timestamp `ts` in the time series``name``
+        """
         return self.execute_command('TSGET', name, ts)
 
     def tscard(self, name):
-        "Return the number of elements in the time series``name``"
+        """
+        Return the number of elements in the time series``name``
+        """
         return self.execute_command('TSCARD', name)
 
     def tsrem(self, name, *timestamps):
-        "Remove member ``timestamps`` from sorted set ``name``"
+        """
+        Remove member ``timestamps`` from sorted set ``name``
+        """
         return self.execute_command('TSREM', name, *timestamps)
 
     def tslastn(self, name, count):
