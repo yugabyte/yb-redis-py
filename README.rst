@@ -24,19 +24,9 @@ Installation
 redis-py requires a running Redis server. See `Redis's quickstart
 <http://redis.io/topics/quickstart>`_ for installation instructions.
 
-To install redis-py, simply:
+To install redis-py:
 
-.. code-block:: bash
-
-    $ sudo pip install redis
-
-or alternatively (you really should be using pip though):
-
-.. code-block:: bash
-
-    $ sudo easy_install redis
-
-or from source:
+from source:
 
 .. code-block:: bash
 
