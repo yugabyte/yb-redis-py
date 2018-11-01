@@ -22,7 +22,10 @@ from redis.exceptions import (
 )
 
 
-__version__ = '2.10.6'
+# In the format A.B.C.Y where
+# A.B.C is the redis version number from the parent branch.
+# Y is the release number for the YugaByte modifications.
+__version__ = '2.10.6.1'
 VERSION = tuple(map(int, __version__.split('.')))
 
 __all__ = [

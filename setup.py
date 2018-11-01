@@ -32,16 +32,16 @@ long_description = f.read()
 f.close()
 
 setup(
-    name='redis',
+    name='yedis',
     version=__version__,
-    description='Python client for Redis key-value store',
+    description='Python client for Redis key-value store, extended to support additional features from YugaByteDB',
     long_description=long_description,
-    url='http://github.com/andymccurdy/redis-py',
+    url='https://github.com/YugaByte/yb-redis-py',
     author='Andy McCurdy',
     author_email='sedrik@gmail.com',
-    maintainer='Andy McCurdy',
-    maintainer_email='sedrik@gmail.com',
-    keywords=['Redis', 'key-value store'],
+    maintainer='Amitanand Aiyer',
+    maintainer_email='amitanand@yugabyte.com',
+    keywords=['YugaByte', 'YugaByteDB', 'Yedis', 'Redis', 'key-value store'],
     license='MIT',
     packages=['redis'],
     extras_require={
