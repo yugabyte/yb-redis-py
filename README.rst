@@ -4,8 +4,8 @@ yedis
 The Python interface to the Redis key-value store, extended to support additional features from YugaByteDB.
 
 This has been forked from https://github.com/andymccurdy/redis-py and is intended to be
-used against the Yedis API end point of YugaByteDB. This client also supports additional
-commands (such as the time-series related commands) for use againist YugaByte DB that
+used against the YEDIS API end point of YugaByteDB. This client also supports additional
+commands (such as the time-series related commands) for use against YugaByte DB that
 are not part of the official Redis API.
 
 Please refer to `YugaByte DB docs <https://docs.yugabyte.com/>`_ for reference.
