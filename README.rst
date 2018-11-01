@@ -14,10 +14,11 @@ Please refer to `YugaByte DB docs <https://docs.yugabyte.com/>`_ for reference.
 Installation
 ------------
 
-yedis requires a running Redis server. See `Redis's quickstart
+yedis requires a running YugaByteDB instance listening on the YEDIS end point, or a normal Redis server. See `YugaByteDB quickstart <https://docs.yugabyte.com/v1.0/quick-start/install/>`_ or `Redis's quickstart
 <http://redis.io/topics/quickstart>`_ for installation instructions.
 
 To install yedis, simply:
+
 .. code-block:: bash
 
     $ sudo pip install yedis
