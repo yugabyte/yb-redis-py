@@ -1,14 +1,14 @@
-redis-py
+yedis
 ========
 
-The Python interface to the Redis key-value store.
+The Python interface to the Redis key-value store, extended to support additional features from YugaByteDB.
 
-.. image:: https://secure.travis-ci.org/andymccurdy/redis-py.png?branch=master
-        :target: http://travis-ci.org/andymccurdy/redis-py
-.. image:: https://readthedocs.org/projects/redis-py/badge/?version=latest&style=flat
-        :target: https://redis-py.readthedocs.io/en/latest/
+.. image:: https://secure.travis-ci.org/andymccurdy/yedis.png?branch=master
+        :target: http://travis-ci.org/andymccurdy/yedis
+.. image:: https://readthedocs.org/projects/yedis/badge/?version=latest&style=flat
+        :target: https://yedis.readthedocs.io/en/latest/
 .. image:: https://badge.fury.io/py/redis.svg
-        :target: https://pypi.org/project/redis/
+        :target: https://pypi.org/project/yedis/
 
 This has been forked from https://github.com/andymccurdy/redis-py and is intended to be
 used against the Yedis API end point of YugaByteDB. This client also supports additional
@@ -21,12 +21,21 @@ Please refer to `YugaByte DB docs <https://docs.yugabyte.com/>`_ for reference.
 Installation
 ------------
 
-redis-py requires a running Redis server. See `Redis's quickstart
+yedis requires a running Redis server. See `Redis's quickstart
 <http://redis.io/topics/quickstart>`_ for installation instructions.
 
-To install redis-py:
+To install yedis, simply:
+.. code-block:: bash
 
-from source:
+    $ sudo pip install yedis
+
+or alternatively (you really should be using pip though):
+
+.. code-block:: bash
+
+    $ sudo easy_install yedis
+
+or from source:
 
 .. code-block:: bash
 
@@ -56,15 +65,17 @@ specified.
 
 API Reference
 -------------
+Please refer to `YugaByte API Refernce <https://docs.yugabyte.com/latest/api/>`_ for details on
+the commmands that Yugabyte's YEDIS end point supports.
 
-The `official Redis command documentation <http://redis.io/commands>`_ does a
-great job of explaining each command in detail. redis-py exposes two client
+For other use cases, the `official Redis command documentation <http://redis.io/commands>`_ does a
+great job of explaining each command in detail. yedis/redis-py exposes two client
 classes that implement these commands. The StrictRedis class attempts to adhere
 to the official command syntax. There are a few exceptions:
 
 * **SELECT**: Not implemented. See the explanation in the Thread Safety section
   below.
-* **DEL**: 'del' is a reserved keyword in the Python syntax. Therefore redis-py
+* **DEL**: 'del' is a reserved keyword in the Python syntax. Therefore yedis/redis-py
   uses 'delete' instead.
 * **CONFIG GET|SET**: These are implemented separately as config_get or config_set.
 * **MULTI/EXEC**: These are implemented as part of the Pipeline class. The
@@ -87,7 +98,7 @@ to the official command syntax. There are a few exceptions:
 
 In addition to the changes above, the Redis class, a subclass of StrictRedis,
 overrides several other commands to provide backwards compatibility with older
-versions of redis-py:
+versions of yedis/redis-py:
 
 * **LREM**: Order of 'num' and 'value' arguments reversed such that 'num' can
   provide a default value of zero.
@@ -104,7 +115,7 @@ More Detail
 Connection Pools
 ^^^^^^^^^^^^^^^^
 
-Behind the scenes, redis-py uses a connection pool to manage connections to
+Behind the scenes, yedis/redis-py uses a connection pool to manage connections to
 a Redis server. By default, each Redis instance you create will in turn create
 its own connection pool. You can override this behavior and use an existing
 connection pool by passing an already created connection pool instance to the
@@ -120,7 +131,7 @@ connections are managed.
 Connections
 ^^^^^^^^^^^
 
-ConnectionPools manage a set of Connection instances. redis-py ships with two
+ConnectionPools manage a set of Connection instances. yedis/redis-py ships with two
 types of Connections. The default, Connection, is a normal TCP socket based
 connection. The UnixDomainSocketConnection allows for clients running on the
 same device as the server to connect via a unix domain socket. To use a
@@ -149,8 +160,8 @@ Parsers
 ^^^^^^^
 
 Parser classes provide a way to control how responses from the Redis server
-are parsed. redis-py ships with two parser classes, the PythonParser and the
-HiredisParser. By default, redis-py will attempt to use the HiredisParser if
+are parsed. yedis/redis-py ships with two parser classes, the PythonParser and the
+HiredisParser. By default, yedis/redis-py will attempt to use the HiredisParser if
 you have the hiredis module installed and will fallback to the PythonParser
 otherwise.
 
@@ -161,7 +172,7 @@ performance increase is most noticeable when retrieving many pieces of data,
 such as from LRANGE or SMEMBERS operations.
 
 Hiredis is available on PyPI, and can be installed via pip or easy_install
-just like redis-py.
+just like yedis/redis-py.
 
 .. code-block:: bash
 
@@ -207,7 +218,7 @@ database remains selected until another is selected or until the connection is
 closed. This creates an issue in that connections could be returned to the pool
 that are connected to a different database.
 
-As a result, redis-py does not implement the SELECT command on client
+As a result, yedis/redis-py does not implement the SELECT command on client
 instances. If you use multiple Redis databases within the same application, you
 should create a separate client instance (and possibly a separate connection
 pool) for each database.
@@ -338,7 +349,7 @@ which is much easier to read:
 Publish / Subscribe
 ^^^^^^^^^^^^^^^^^^^
 
-redis-py includes a `PubSub` object that subscribes to channels and listens
+yedis/redis-py includes a `PubSub` object that subscribes to channels and listens
 for new messages. Creating a `PubSub` object is easy.
 
 .. code-block:: pycon
@@ -410,7 +421,7 @@ Unsubscribing works just like subscribing. If no arguments are passed to
     >>> p.get_message()
     {'channel': 'my-*', 'data': 0L, 'pattern': None, 'type': 'punsubscribe'}
 
-redis-py also allows you to register callback functions to handle published
+yedis/redis-py also allows you to register callback functions to handle published
 messages. Message handlers take a single argument, the message, which is a
 dictionary just like the examples above. To subscribe to a channel or pattern
 with a message handler, pass the channel or pattern name as a keyword argument
@@ -497,7 +508,7 @@ loop.
 
 Note: Since we're running in a separate thread, there's no way to handle
 messages that aren't automatically handled with registered message handlers.
-Therefore, redis-py prevents you from calling `run_in_thread()` if you're
+Therefore, yedis/redis-py prevents you from calling `run_in_thread()` if you're
 subscribed to patterns or channels that don't have message handlers attached.
 
 .. code-block:: pycon
@@ -549,9 +560,9 @@ supported:
 Lua Scripting
 ^^^^^^^^^^^^^
 
-redis-py supports the EVAL, EVALSHA, and SCRIPT commands. However, there are
+yedis/redis-py supports the EVAL, EVALSHA, and SCRIPT commands. However, there are
 a number of edge cases that make these commands tedious to use in real world
-scenarios. Therefore, redis-py exposes a Script object that makes scripting
+scenarios. Therefore, yedis/redis-py exposes a Script object that makes scripting
 much easier to use.
 
 To create a Script instance, use the `register_script` function on a client
@@ -577,7 +588,7 @@ function. Script instances accept the following optional arguments:
 * **keys**: A list of key names that the script will access. This becomes the
   KEYS list in Lua.
 * **args**: A list of argument values. This becomes the ARGV list in Lua.
-* **client**: A redis-py Client or Pipeline instance that will invoke the
+* **client**: A yedis/redis-py Client or Pipeline instance that will invoke the
   script. If client isn't specified, the client that intiially
   created the Script instance (the one that `register_script` was
   invoked from) will be used.
@@ -624,11 +635,11 @@ execution.
 Sentinel support
 ^^^^^^^^^^^^^^^^
 
-redis-py can be used together with `Redis Sentinel <http://redis.io/topics/sentinel>`_
+yedis/redis-py can be used together with `Redis Sentinel <http://redis.io/topics/sentinel>`_
 to discover Redis nodes. You need to have at least one Sentinel daemon running
-in order to use redis-py's Sentinel support.
+in order to use yedis/redis-py's Sentinel support.
 
-Connecting redis-py to the Sentinel instance(s) is easy. You can use a
+Connecting yedis/redis-py to the Sentinel instance(s) is easy. You can use a
 Sentinel connection to discover the master and slaves network addresses:
 
 .. code-block:: pycon
@@ -671,7 +682,7 @@ Scan Iterators
 ^^^^^^^^^^^^^^
 
 The \*SCAN commands introduced in Redis 2.8 can be cumbersome to use. While
-these commands are fully supported, redis-py also exposes the following methods
+these commands are fully supported, yedis/redis-py also exposes the following methods
 that return Python iterators for convenience: `scan_iter`, `hscan_iter`,
 `sscan_iter` and `zscan_iter`.
 
@@ -688,13 +699,9 @@ that return Python iterators for convenience: `scan_iter`, `hscan_iter`,
 Author
 ^^^^^^
 
+yedis is based on a fork of redis-py, extended to support the additional
+commands for use against YugaByteDB's YEDIS API end point. 
+
 redis-py is developed and maintained by Andy McCurdy (sedrik@gmail.com).
 It can be found here: http://github.com/andymccurdy/redis-py
-
-Special thanks to:
-
-* Ludovico Magnocavallo, author of the original Python Redis client, from
-  which some of the socket code is still used.
-* Alexander Solovyov for ideas on the generic response callback system.
-* Paul Hubbard for initial packaging support.
 
